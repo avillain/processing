@@ -16,6 +16,7 @@ if __name__ == '__main__':
     parser.add_argument("soap", help='SOAPindel vcf file')
     parser.add_argument("prism", help='PRISM vcf file')
     parser.add_argument("mpileup", help='Coverage mpileup file from the control')
+    parser.add_argument("output",help='Output snpEffable file')
 
     if not sys.argv[1:] :
        sys.argv.append('-h')
@@ -54,10 +55,7 @@ if __name__ == '__main__':
 		fields=[s.replace("\n", "") for s in flds]
 		vcfrecords[tuple(fields[:2])]=[fields[2:],1,0] # code is +1 for pindel, +2 for soap and +4 for Prism ; eg 1=p 2=s 3=ps 4=P 5=pP 6=sP 7=psP, last field is coverage in control
     
-#    from pprint import pprint
-#    pprint(vcfrecords)
-#    sys.exit(0)
-
+    
     with open(args.soap,'r') as soafile:
 	for line in soafile:
 	    if line[:1]=='#':
@@ -69,12 +67,13 @@ if __name__ == '__main__':
 		id=tuple(fields[:2])
 		if tuple(id) in vcfrecords.keys():
 		    vcfrecords[id][1]+=2
-		    vcfrecords[id][0][1]+=";%s"%(fields[3])
-		    vcfrecords[id][0][2]+=";%s"%(fields[4])
-		    vcfrecords[id][0][3]+=";%s"%(fields[5])
+		    vcfrecords[id][0][1]=vcfrecords[id][0][1] if vcfrecords[id][0][1]==fields[3] else vcfrecords[id][0][1]+";%s"%(fields[3])
+		    vcfrecords[id][0][2]=vcfrecords[id][0][2] if vcfrecords[id][0][2]==fields[4] else vcfrecords[id][0][2]+";%s"%(fields[4])
+		    vcfrecords[id][0][3]="%s"%(fields[5]) if vcfrecords[id][0][3]=="." else vcfrecords[id][0][3]+";%s"%(fields[5])
+		    vcfrecords[id][0][4]=vcfrecords[id][0][4] if fields[6]==vcfrecords[id][0][4] else vcfrecords[i][0][4]+";%s"%(fields[6])
 		    vcfrecords[id][0][5]+=";%s"%(fields[7])
 		    vcfrecords[id][0][6]+=";%s"%(fields[8])
-		    vcfrecords[id][0][7]=vcfrecords[id][0][7][:-1]+";%s"%(fields[9])
+		    vcfrecords[id][0][7]+=";%s"%(fields[9])
 		else:
 		    vcfrecords[tuple(fields[:2])]=[fields[2:],2,0]
     with open(args.prism,'r') as prifile:
@@ -88,20 +87,23 @@ if __name__ == '__main__':
                 id=tuple(fields[:2])
                 if tuple(id) in vcfrecords.keys():
                     vcfrecords[id][1]+=4
-                    vcfrecords[id][0][1]+=";%s"%(fields[3])
-                    vcfrecords[id][0][2]+=";%s"%(fields[4])
-                    vcfrecords[id][0][5]+=";%s"%(fields[7])
+                    vcfrecords[id][0][1]=vcfrecords[id][0][1] if vcfrecords[id][0][1]==fields[3] else vcfrecords[id][0][1]+";%s"%(fields[3])
+                    vcfrecords[id][0][2]=vcfrecords[id][0][2] if vcfrecords[id][0][2]==fields[4] else vcfrecords[id][0][2]+";%s"%(fields[4])
+		    vcfrecords[id][0][5]+=":%s"%(fields[7])
                 else:
-                    vcfrecords[tuple(fields[:2])]=[fields[2:]+['',''],4,0]
-    header+="#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tSAMPLE\tPROG\tCOV\n"
-    print header,
-    for i in vcfrecords:
-	try:
-	    vcfrecords[i][2]=cov[i[0]][i[1]]
-	except:
-	    pass
-	print "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s"%(i[0],i[1],vcfrecords[i][0][0],vcfrecords[i][0][1],vcfrecords[i][0][2],vcfrecords[i][0][3],vcfrecords[i][0][4],vcfrecords[i][0][5],vcfrecords[i][0][6],vcfrecords[i][0][7],vcfrecords[i][1],vcfrecords[i][2])
-    #from pprint import pprint
-    #pprint(vcfrecords)
+                    vcfrecords[tuple(fields[:2])]=[fields[2:]+['.','.'],4,0]
+    header+="#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tSAMPLE\n"
+    header2=header[:-1]+"\tPROG\tCOV\n"
+    print header2,
+    with open(args.output,"w") as filout:
+	filout.write(header)
+	for i in vcfrecords:
+	    try:
+	        vcfrecords[i][2]=cov[i[0]][i[1]]
+	    except:
+	        pass
+	    print "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s"%(i[0],i[1],vcfrecords[i][0][0],vcfrecords[i][0][1],vcfrecords[i][0][2],vcfrecords[i][0][3],vcfrecords[i][0][4],vcfrecords[i][0][5],vcfrecords[i][0][6],vcfrecords[i][0][7],vcfrecords[i][1],vcfrecords[i][2])
+    	    filout.write("%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n"%(i[0],i[1],vcfrecords[i][0][0],vcfrecords[i][0][1],vcfrecords[i][0][2],vcfrecords[i][0][3],vcfrecords[i][0]
+[4],vcfrecords[i][0][5],vcfrecords[i][0][6],vcfrecords[i][0][7]))
     sys.exit(0)    
     
