@@ -13,7 +13,7 @@ import re
 
 strains={}
 ref={}
-nb=len(sys.argv)-1
+nb=len(sys.argv)-2
 string="Chr\tPos\tRef\t"
 lim="\t"
 seq=[">ref\n"]
@@ -36,23 +36,24 @@ for i in range(nb):
 
 #print string
 #pprint(strains)
-
-for k in ref.keys():
+with open(sys.argv[-1],'w') as filout:
+	filout.write("%s\n" %string)
+	for k in sorted(ref.keys(),key=lambda r: int(r[1])):
 	#k=ref.keys()[0]
-	string=k[0]+"\t"+k[1]+"\t"+ref[k]+"\t"
-	seq[0]+=ref[k]
-	for s in range(nb):
-		try:
-			base=strains[(sys.argv[s+1],k[0],k[1])]
-		except:
-			base=ref[k]
-		string+=base
-		seq[s+1]+=base
-		if s+1==nb:
-			string+=""
-		else:
-			string+="\t"
-	#print string
+		string=k[0]+"\t"+k[1]+"\t"+ref[k]+"\t"
+		seq[0]+=ref[k]
+		for s in range(nb):
+			try:
+				base=strains[(sys.argv[s+1],k[0],k[1])]
+			except:
+				base=ref[k]
+			string+=base
+			seq[s+1]+=base
+			if s+1==nb:
+				string+=""
+			else:
+				string+="\t"
+		filout.write("%s\n" %string)
 
 for s in seq:
 	print s

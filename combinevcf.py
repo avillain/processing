@@ -70,7 +70,7 @@ if __name__ == '__main__':
 		    vcfrecords[id][0][1]=vcfrecords[id][0][1] if vcfrecords[id][0][1]==fields[3] else vcfrecords[id][0][1]+";%s"%(fields[3])
 		    vcfrecords[id][0][2]=vcfrecords[id][0][2] if vcfrecords[id][0][2]==fields[4] else vcfrecords[id][0][2]+";%s"%(fields[4])
 		    vcfrecords[id][0][3]="%s"%(fields[5]) if vcfrecords[id][0][3]=="." else vcfrecords[id][0][3]+";%s"%(fields[5])
-		    vcfrecords[id][0][4]=vcfrecords[id][0][4] if fields[6]==vcfrecords[id][0][4] else vcfrecords[i][0][4]+";%s"%(fields[6])
+		    vcfrecords[id][0][4]=vcfrecords[id][0][4] if fields[6]==vcfrecords[id][0][4] else vcfrecords[id][0][4]+";%s"%(fields[6])
 		    vcfrecords[id][0][5]+=";%s"%(fields[7])
 		    vcfrecords[id][0][6]+=";%s"%(fields[8])
 		    vcfrecords[id][0][7]+=";%s"%(fields[9])
@@ -97,13 +97,20 @@ if __name__ == '__main__':
     print header2,
     with open(args.output,"w") as filout:
 	filout.write(header)
-	for i in vcfrecords:
+	for i in sorted(vcfrecords, key = lambda x: (x[0], int(x[1]))):
 	    try:
-	        vcfrecords[i][2]=cov[i[0]][i[1]]
-	    except:
-	        pass
-	    print "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s"%(i[0],i[1],vcfrecords[i][0][0],vcfrecords[i][0][1],vcfrecords[i][0][2],vcfrecords[i][0][3],vcfrecords[i][0][4],vcfrecords[i][0][5],vcfrecords[i][0][6],vcfrecords[i][0][7],vcfrecords[i][1],vcfrecords[i][2])
-    	    filout.write("%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n"%(i[0],i[1],vcfrecords[i][0][0],vcfrecords[i][0][1],vcfrecords[i][0][2],vcfrecords[i][0][3],vcfrecords[i][0]
-[4],vcfrecords[i][0][5],vcfrecords[i][0][6],vcfrecords[i][0][7]))
-    sys.exit(0)    
+                vcfrecords[i][2]=cov[i[0]][i[1]]
+            except:
+                pass
+            print "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s"%(i[0],i[1],vcfrecords[i][0][0],vcfrecords[i][0][1],vcfrecords[i][0][2],vcfrecords[i][0][3],vcfrecords[i][0][4],vcfrecords[i][0][5],vcfrecords[i][0][6],vcfrecords[i][0][7],vcfrecords[i][1],vcfrecords[i][2])
+            filout.write("%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n"%(i[0],i[1],vcfrecords[i][0][0].split(";",1)[0],vcfrecords[i][0][1].split(";",1)[0],vcfrecords[i][0][2].split(";",1)[0],vcfrecords[i][0][3].split(";",1)[0],vcfrecords[i][0][4].split(";",1)[0],vcfrecords[i][0][5].split(";",1)[0],vcfrecords[i][0][6].split(";",1)[0],vcfrecords[i][0][7].split(";",1)[0]))
+#	for i in vcfrecords:
+#	    try:
+#	        vcfrecords[i][2]=cov[i[0]][i[1]]
+#	    except:
+#	        pass
+#	    print "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s"%(i[0],i[1],vcfrecords[i][0][0],vcfrecords[i][0][1],vcfrecords[i][0][2],vcfrecords[i][0][3],vcfrecords[i][0][4],vcfrecords[i][0][5],vcfrecords[i][0][6],vcfrecords[i][0][7],vcfrecords[i][1],vcfrecords[i][2])
+#    	    filout.write("%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n"%(i[0],i[1],vcfrecords[i][0][0],vcfrecords[i][0][1],vcfrecords[i][0][2],vcfrecords[i][0][3],vcfrecords[i][0]
+#[4],vcfrecords[i][0][5],vcfrecords[i][0][6],vcfrecords[i][0][7]))
+#    sys.exit(0)    
     
