@@ -2,9 +2,14 @@
 # -*- coding: utf-8 -*-
 
 import sys
-import argparse
 from pprint import pprint
 import re
+
+
+description="Takes multiple flanksnps files and outputs a tabulated file with every mutation (lines) for every strain (columns) to a file (last argument) and a fasta file with all the positions for every strain to stdout\nExample : ./combineflanks.py strain1_flanksnps.xls strain2_flanksnps.xls recap.xls > recap.fa"
+
+if not sys.argv[1:] or sys.argv[1] in ["-h","-help","--help"]:
+    sys.exit(description)
 
 #parser = argparse.ArgumentParser(description='Extracts flanking regions of SNPS.')
 #parser.add_argument("reference", help='Reference file in FASTA format')
