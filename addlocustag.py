@@ -21,6 +21,7 @@ def addlocus(fil): # fichier .gbk
     		for line in filin: # parcours du contenu du fichier
 			print "%s" %line[:-1]
 			if relen.findall(line):
+				#id=line.split()[1]
 				id=randomword(4).upper()
 				num=0
 			elif recds.findall(line):
