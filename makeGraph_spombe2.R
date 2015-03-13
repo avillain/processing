@@ -5,7 +5,7 @@ dataTable <-read.table(args[5], header=TRUE);
 ratio<-data.frame(dataTable)
 ploidy <- type.convert(args[4])
 
-png(filename = paste(args[5],".png",sep = ""), width = 1180, height = 1180,
+png(filename = paste(args[5],"_MT_MTR_AB325691.png",sep = ""), width = 1180, height = 1180,
     units = "px", pointsize = 20, bg = "white", res = NA)
 plot(1:10)
 op <- par(mfrow = c(3,1))
