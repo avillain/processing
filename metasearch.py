@@ -162,8 +162,7 @@ def blastorfcandidates(orfasta, nthreads=1):
         except:
             print "Error running blast on file %s\n" %orfasta
             raise
-        else:
-            return blout
+    return blout
 
 def getorfs(dnafafile):
     """ Writes open reading frames from dna fasta file to ORF fasta file """
@@ -197,8 +196,7 @@ def getorfs(dnafafile):
         except:
             print "Error retrieving ORFs from file %s\n" %dnafafile
             raise
-        else:
-            return orfile
+    return orfile
 
 def parseblastorf(xmlout):
     """ Parses xml blastp ouptput to identify proteins """
@@ -226,8 +224,7 @@ def parseblastorf(xmlout):
         except:
             print "Error parsing blast xml output file %s\n" %xmlout
             raise
-        else:
-            return output
+    return output
 
 
 if __name__ == '__main__':
@@ -290,7 +287,7 @@ if __name__ == '__main__':
         print "Fasta fetch for %s candidates already done\n" %args.database
     
     filorfs=getorfs(candfa)
-    blorfs=blastorfcandidates(candfa, args.cpu)
+    blorfs=blastorfcandidates(filorfs, args.cpu)
     results=parseblastorf(blorfs)
     
 
