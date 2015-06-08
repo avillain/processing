@@ -10,6 +10,9 @@ import re
 import sys
 import argparse
 import subprocess
+from Bio import SeqIO
+from Bio.Seq import Seq
+from Bio.Blast import NCBIXML
 
 def importdb(fildb):
     """
@@ -145,22 +148,87 @@ def fetchcandidate(cand, fasta, index, outfa):
         raise
     return outfa
 
-def blastcandidates(fastacand, nthreads=1):
+def blastorfcandidates(orfasta, nthreads=1):
     """ Runs blast to validate hmmsearch hits """
-    blout=os.path.basename(os.path.splitext(fastacand)[0])+"_blast.out"
+    blout=os.path.basename(os.path.splitext(orfasta)[0])+"_blast.xml"
     if os.path.isfile(blout):
-        print "Validation of candidates by blast already performed\n"
+        print "Validation of candidate ORFs by blast already performed\n"
     else:
-        print "Running blast on %s to validate candidates\n" %fastacand
+        print "Running blast on %s to validate candidate ORFs\n" %orfasta
         try:
-            return_code = subprocess.call("blastx -num_threads %d -db nr"
-                                          " -query %s > %s" %(nthreads,
-                                          fastacand, blout), shell=True)
+            return_code = subprocess.call("blastx -outfmt 5 -num_threads %d -db"
+                                          " nr -query %s > %s" %(nthreads,
+                                          orfasta, blout), shell=True)
         except:
-            print "Error running blast on file %s\n" %fastacand
+            print "Error running blast on file %s\n" %orfasta
             raise
         else:
             return blout
+
+def getorfs(dnafafile):
+    """ Writes open reading frames from dna fasta file to ORF fasta file """
+    orfile=os.path.basename(os.path.splitext(dnafafile)[0])+"_ORFs.fa"
+    if os.path.isfile(orfile):
+        print "Retrieval of ORFs already performed : %s\n" %orfile
+    else:
+        print "Retrieving ORFs from  %s to validate candidates\n" %dnafafile
+        try:
+            table=1
+            min_cds_len=150
+            with open(orfile, 'w') as filout:
+                for s in SeqIO.parse(dnafafile, "fasta"):
+                    l=len(s.seq)
+                    for strand, nuc in [(+1, s.seq),
+                                        (-1, s.seq.reverse_complement())]:
+                        for frame in xrange(3):
+                            seq=str(nuc[frame:].translate(table))
+                            for m in re.finditer(
+                                        '[ARNDBCEQZGHILKMFPSTWYV]+', seq):
+                                candcds=seq[m.start():m.end()]
+                                if len(candcds) >= min_cds_len:
+                                    fr=frame+1 if strand==1 else frame+4
+                                    st=3*m.start()+fr if strand==1 else \
+                                    l-3*m.start()-3*(m.end()-m.start())
+                                    en=3*(m.end()+1)+frame if strand==1 else \
+                                    l-3*m.start()
+                                    filout.write(">%s_%d_%d_%d\n%s\n"
+                                                  %(s.id, fr, st,
+                                                  en, candcds))
+        except:
+            print "Error retrieving ORFs from file %s\n" %dnafafile
+            raise
+        else:
+            return orfile
+
+def parseblastorf(xmlout):
+    """ Parses xml blastp ouptput to identify proteins """
+    output=os.path.basename(os.path.splitext(xmlout)[0])+"_parsed.out"
+    if os.path.isfile(output):
+        print "Blast xml parsing already performed : %s\n" %output
+    else:
+        print "Parsing blast xml file  %s\n" %xmlout
+        try:
+            out=""
+            with open(xmlout, 'r') as xmlin:
+                blast_records = NCBIXML.parse(xmlin)
+                lastcontig=""
+                for record in blast_records:
+                    contig=re.match("([^_]+)_\d+_\d+_\d+",
+                                    record.query).groups()[0]
+                    if lastcontig!=contig:
+                        out+="%s" %contig
+                    if record.alignments:
+                        out+="\t%s\t%s\t%s\n" %(
+                            record.query, record.alignments[0].hit_def,
+                            str(record.alignments[0].hsps[0].expect))
+            with open(output, "w") as filout:
+                filout.write(out)
+        except:
+            print "Error parsing blast xml output file %s\n" %xmlout
+            raise
+        else:
+            return output
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
@@ -206,7 +274,7 @@ if __name__ == '__main__':
         match=filtertblout(tb, args.evalue, evaldomain)
         listmatches.append(match)
 
-    ### extract candidates, validate by blast
+    ### extract candidate contigs, ORFs
     candidates=[]
     for m in listmatches:
         with open(m, 'r') as fcand:
@@ -220,6 +288,9 @@ if __name__ == '__main__':
             res=fetchcandidate(c, fadna, faind, candfa)
     else:
         print "Fasta fetch for %s candidates already done\n" %args.database
-    validation=blastcandidates(candfa, args.cpu)
-
+    
+    filorfs=getorfs(candfa)
+    blorfs=blastorfcandidates(candfa, args.cpu)
+    results=parseblastorf(blorfs)
+    
 
