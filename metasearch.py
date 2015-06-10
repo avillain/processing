@@ -9,6 +9,7 @@ import os
 import re
 import sys
 import argparse
+import warnings
 import subprocess
 from Bio import SeqIO
 from Bio.Seq import Seq
@@ -23,13 +24,13 @@ def importdb(fildb):
         l=f.readline()
         assert(l[:1]=='>'), "Database %s is not a fasta file.\n"%fildb
         seq=''
-        assert(validate(seq)), "Database %s is not dna fasta.\n"%fildb
         while(1):
             l=f.readline()
             if l[:1]=='>':
                 break
             else:
                 seq+=l[:-1]
+        assert(validate(seq)), "Database %s is not dna fasta.\n"%fildb
         protdb=os.path.splitext(fildb)[0]+'.prot'
         if os.path.isfile(protdb):
             print "6 frame translation already done.\n"
@@ -50,7 +51,6 @@ def validate(seq, alphabet='dna'):
     """ Check that a sequence only contains values from an alphabet """
     alphabets = {'dna': re.compile('^[acgtn]*$', re.I), 
              'protein': re.compile('^[acdefghiklmnpqrstvwy]*$', re.I)}
-    
     if alphabets[alphabet].search(seq) is not None:
          return True
     else:
@@ -59,33 +59,37 @@ def validate(seq, alphabet='dna'):
 def filtertblout(filtblout, emaxglob, emaxdom):
     """ Filters significant hmmsearch hits """
     filout=os.path.splitext(filtblout)[0]+"_filtered.list"
-    try:
-        with open(filout,"w") as fout:
-            with open(filtblout,"r") as fin:
-                for lin in fin:
-                    if lin[:1]!='#':
-                        fields=lin.split()
-                        eglob=float(fields[4])
-                        edom=float(fields[7])
-                        if eglob < emaxglob and edom < emaxdom:
-                            fout.write("%s\t%s\t%s\n" %(fields[0][:-2],
+    if os.path.isfile(filout):
+        print "hmmsearch ouptut %s already filtered : %s\n" %(filtblout, filout)
+    else:
+        print "Filtering hmmsearch output %s in %s\n" %(filtblout, filout)
+        try:
+            with open(filout,"w") as fout:
+                with open(filtblout,"r") as fin:
+                    for lin in fin:
+                        if lin[:1]!='#':
+                            fields=lin.split()
+                            eglob=float(fields[4])
+                            edom=float(fields[7])
+                            if eglob < emaxglob and edom < emaxdom:
+                                fout.write("%s\t%s\t%s\n" %(fields[0][:-2],
                                                     fields[4],fields[7]))
-        return filout
-    except:
-        print "Error filtering hmmsearch output\n"
-        raise
+        except:
+            print "Error filtering hmmsearch output %s\n" %filtblout
+            raise
+    return filout
 
 def fastaindex(filfasta):
     """ Calling fastaindex from exonerate """
     fastindex=os.path.splitext(filfasta)[0]+'.index'
     if os.path.isfile(fastindex):
-        print "Fasta indexation already done.\n"
+        print "Fasta indexation already done : %s\n" %fastindex
     else:
         try:
             return_code = subprocess.call("fastaindex %s %s"%(
                                           filfasta,fastindex), shell=True)
         except:
-            print "Error calling fastaindex\n"
+            print "Error calling fastaindex on %s\n" %filfasta
     return fastindex
 
 def ishmm3r(fil):
@@ -156,9 +160,10 @@ def blastorfcandidates(orfasta, nthreads=1):
     else:
         print "Running blast on %s to validate candidate ORFs\n" %orfasta
         try:
-            return_code = subprocess.call("blastx -outfmt 5 -num_threads %d -db"
-                                          " nr -query %s > %s" %(nthreads,
-                                          orfasta, blout), shell=True)
+            return_code = subprocess.call(
+          "blastp -outfmt 5 -max_target_seqs 1 -num_threads %d -evalue 0.1 -db "
+          "uniref90.fasta -query %s > %s" %(
+                                          nthreads, orfasta, blout), shell=True)
         except:
             print "Error running blast on file %s\n" %orfasta
             raise
@@ -186,17 +191,28 @@ def getorfs(dnafafile):
                                 candcds=seq[m.start():m.end()]
                                 if len(candcds) >= min_cds_len:
                                     fr=frame+1 if strand==1 else frame+4
-                                    st=3*m.start()+fr if strand==1 else \
-                                    l-3*m.start()-3*(m.end()-m.start())
-                                    en=3*(m.end()+1)+frame if strand==1 else \
-                                    l-3*m.start()
+                                    st, en = prot2dnacoords(seq, m.start(),
+                                                            m.end(), fr)
                                     filout.write(">%s_%d_%d_%d\n%s\n"
-                                                  %(s.id, fr, st,
-                                                  en, candcds))
+                                                 %(s.id, fr, st, en, candcds))
         except:
             print "Error retrieving ORFs from file %s\n" %dnafafile
             raise
     return orfile
+
+def prot2dnacoords(seq, start, end, frame): 
+    """ Calculates dna coordinates from dna ORF and fully translated sequence
+        frame = 1, 2, 3 (+1, +2, +3), 4, 5, 6 (-1, -2, -3) """
+    if frame > 3:
+        frame-=3
+        st=3*(len(seq)-end+1)
+        en=3*(len(seq)-start+1)
+    else:
+        st=3*start+frame
+        en=3*(end+1) if end==len(seq) else 3*end
+    en=en if en>=3*len(seq) else en+3
+    return st, en
+
 
 def parseblastorf(xmlout):
     """ Parses xml blastp ouptput to identify proteins """
@@ -210,15 +226,25 @@ def parseblastorf(xmlout):
             with open(xmlout, 'r') as xmlin:
                 blast_records = NCBIXML.parse(xmlin)
                 lastcontig=""
+                n=0
                 for record in blast_records:
-                    contig=re.match("([^_]+)_\d+_\d+_\d+",
-                                    record.query).groups()[0]
+                    n+=1
+                    res=re.match("([^_]+)_(\d+)_(\d+)_(\d+)", record.query)
+                    contig=res.groups()[0]
+                    st="+" if int(res.groups()[1]) <= 3 else "-"
+                    s=res.groups()[2]
+                    e=res.groups()[3]
                     if lastcontig!=contig:
                         out+="%s" %contig
+                        lastcontig=contig
+                        n=0
                     if record.alignments:
-                        out+="\t%s\t%s\t%s\n" %(
-                            record.query, record.alignments[0].hit_def,
-                            str(record.alignments[0].hsps[0].expect))
+                        out+="\tORF%d\t%s\t%s\t%s\t%s\t%s\n" %(
+              n+1, st, s, e, record.alignments[0].hit_def.replace("\n"," "),
+              str(record.alignments[0].hsps[0].expect))
+                    else:
+                        out+="\tORF%d\t%s\t%s\t%s\tNo hits found\t\n" %(
+                                                           n+1, st, s, e)
             with open(output, "w") as filout:
                 filout.write(out)
         except:
@@ -286,8 +312,10 @@ if __name__ == '__main__':
     else:
         print "Fasta fetch for %s candidates already done\n" %args.database
     
-    filorfs=getorfs(candfa)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        filorfs=getorfs(candfa)
     blorfs=blastorfcandidates(filorfs, args.cpu)
     results=parseblastorf(blorfs)
-    
+    print "Results stored in %s\n" %results 
 
