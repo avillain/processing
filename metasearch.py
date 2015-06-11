@@ -104,19 +104,26 @@ def ishmm3r(fil):
 def importprofiles(filprof):
     """ Reads a HMM3R file or list of files """
     if ishmm3r(filprof):
-            return [filprof]
+            return [filprof,""]
     else:
         print("File %s not a HMM3R hmm profile. Trying to read it "
               "as a list of HMM3R hmm profile files.\n" %filprof)
         listfiles=[]
         with open(filprof, 'r') as f:
             for line in f:
-                if not os.access(line.strip(), os.R_OK):
+                fields=line.split()
+                if not os.access(fields[0], os.R_OK):
                     print "Cannot read file %s\n" %line.strip()
-                elif not ishmm3r(line.strip()):
-                    print "File %s is not a HMM3R hmm profile.\n" %line.strip()
                 else:
-                    listfiles.append(line.strip())
+                    if not ishmm3r(fields[0]):
+                        print "File %s is not a HMM3R profile.\n" %line.strip()
+                    else:
+                        out=[fields[0]]
+                        if len(fields) > 1:
+                            out.append(fields[1])
+                        else:
+                            out.append("")
+                        listfiles.append(out)
         if listfiles:
             return listfiles
         else:
@@ -290,13 +297,15 @@ if __name__ == '__main__':
     ### search fasta database, filter hits
     tblouts=[]
     for hmm in hmmprofiles:
-        o,tblo=search(fapro, hmm, args.cpu)
-        tblouts.append(tblo)
+        o,tblo=search(fapro, hmm[0], args.cpu)
+        tblouts.append([tblo, hmm[1]])
     listmatches=[]
     for tb in tblouts:
-        match=filtertblout(tb, args.evalue, evaldomain)
+        ev=args.evalue if tb[1]=="" else float(tb[1])
+        ed=evaldomain if tb[1]=="" else 10*float(tb[1])
+        match=filtertblout(tb[0], ev, ed)
         listmatches.append(match)
-
+    
     ### extract candidate contigs, ORFs
     candidates=[]
     for m in listmatches:
