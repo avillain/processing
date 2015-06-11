@@ -169,7 +169,7 @@ def blastorfcandidates(orfasta, nthreads=1):
         try:
             return_code = subprocess.call(
           "blastp -outfmt 5 -max_target_seqs 1 -num_threads %d -evalue 0.1 -db "
-          "uniref90.fasta -query %s > %s" %(
+          "Uniref90-YSLV1234-ALM-Mav-Gut-Br-As.fa -query %s > %s" %(
                                           nthreads, orfasta, blout), shell=True)
         except:
             print "Error running blast on file %s\n" %orfasta
